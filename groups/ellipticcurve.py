@@ -21,6 +21,9 @@ class EllipticCurve():
             self.curve = weierstrass(curve)
         else:
             self.curve = list(field.elt([i]) for i in curve)
+        if self.field.p in self.bad_reduction_primes():
+            print('Warning: over the field ' + str(field) +
+                  ', this field has ' + self.reduction_type())
 
     def point(self, x, y):
         return ECPoint((self.field.elt(x), self.field.elt(y)), self.curve, self.field)
@@ -35,10 +38,8 @@ class EllipticCurve():
                 y_squared = (x**3+a*x+b) % p
                 if y_squared == 0:
                     count += 1
-                    print('y is zero at x is', x)
                 elif nt.legendre_symbol(y_squared, p) == 1:
                     count += 2
-                    print('double point at ', x)
             return count
         else:
             base_order = self.order(True)
@@ -55,9 +56,9 @@ class EllipticCurve():
     def reduction_type(self):
         if self.field.p in self.bad_reduction_primes():
             if self.curve[0] == 0:
-                return 'bad reduction, additive'
+                return 'bad (additive) reduction'
             else:
-                return 'bad reduction, multiplicative'
+                return 'bad (multiplication) reduction'
         else:
             return 'good reduction'
 
@@ -77,6 +78,11 @@ class EllipticCurve():
                 def h(T):
                     num = T.value[1] - y_1 - m*(T.value[0] - x_1)
                     den = T.value[0] + x_1 + x_2 - m**2
+
+                    if not den.inverse() and num == 0:
+                        return self.field.elt(1)
+                    elif not den.inverse():
+                        return 'inf'
                     return num * den.inverse()
             return h
 
@@ -85,6 +91,8 @@ class EllipticCurve():
         ms = [int(binary_m[i]) for i in range(n+1, 1, -1)]
 
         def f(R, x):
+            if R == x:
+                return self.field.elt(0)
             T = R
             ops = []
             for i in range(n-2, -1, -1):
@@ -95,10 +103,14 @@ class EllipticCurve():
                     ops.append((False, T, R))
                     T = T+R
             out = self.field.elt(1)
+
             for op in ops:
                 if op[0]:
                     out = out**2
                 else:
+                    # zeroes and infinity cancel
+                    if type(g(op[1], op[2])(x)) is str or g(op[1], op[2])(x) == 0:
+                        continue
                     out = (out * g(op[1], op[2])(x))
             return out
 
@@ -114,17 +126,22 @@ class EllipticCurve():
                 continue
             elif nt.legendre_symbol(x**3+a*x+b, self.field.p) != 1:
                 continue
+            y = nt.modular_sqrt(x**3+a*x+b, self.field.p)
+            S = self.point(x, y)
+
             break
 
-        y = nt.modular_sqrt(x**3+a*x+b, self.field.p)
-        S = self.point(x, y)
-        print('S is', S)
         out = f(P, Q+S)*f(P, S).inverse() * (f(Q, P-S)*f(Q, -S).inverse()).inverse()
-        return f, g, out
+        return out
 
     def __repr__(self):
-        curve = 'y^2=x^3+' + str(self.curve[0]) + 'x+' + str(self.curve[1])
-        return 'Elliptic Curve ' + curve + ' over ' + str(self.field)
+        out = 'y^2=x^3'
+        if self.curve[0]:
+            out += '+' + str(self.curve[0]) + 'x'
+        if self.curve[1]:
+            out += '+' + str(self.curve[1])
+
+        return 'Elliptic curve ' + out + ' over ' + str(self.field)
 
 
 

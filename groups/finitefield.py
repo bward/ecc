@@ -131,25 +131,23 @@ class FiniteFieldElement(FieldElement):
         return len(self.value) - 1
 
     def __repr__(self):
+        if self.degree() == 0:
+            return str(self.value[0])
         out = ''
-        first = True
-        if self.value[0]:
-            out += str(self.value[0])
-            first = False
-        if self.degree() > 0:
-            if not first:
+        for i, v in enumerate(self.value[:-1]):
+            if v:
+                if v > 1 or i == 0:
+                    out += str(v)
+                if i > 0:
+                    out += 'x'
+                if i > 1:
+                    out += '^' + str(i)
                 out += '+'
-            if self.value[1] > 1:
-                out += str(self.value[1])+'x'
-            elif self.value[1] > 0:
-                out += 'x'
-            for i, v in enumerate(self.value[2:]):
-                if not first:
-                    out += '+'
-                if v > 1:
-                        out += str(v)+'x^'+str(i+2)
-                elif v > 0:
-                    out += 'x^'+str(i+2)
+        if self.value[-1] > 1:
+            out += str(self.value[-1])
+        out += 'x'
+        if self.degree() > 1:
+            out += '^' + str(self.degree())
         return out
 
     def __abs__(self):
