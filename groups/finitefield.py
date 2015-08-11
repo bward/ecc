@@ -1,8 +1,9 @@
 from groups.fieldelement import FieldElement
 from groups.intmodp import IntModP
 from copy import copy, deepcopy
+from itertools import product
 from random import randint
-from number_theory import euclid, extended_euclid
+from number_theory import euclid, extended_euclid, prime_factorise
 
 
 class FiniteField():
@@ -26,6 +27,9 @@ class FiniteField():
             random_poly = self.elt(value+[IntModP(1, self.p)])
             if random_poly.is_irreducible():
                 return random_poly
+
+    def order(self):
+        return self.p**self.e - 1
 
     def __eq__(self, other):
         return (self.p == other.p and self.q == other.q and self.e == other.e)
@@ -53,7 +57,6 @@ class FiniteFieldElement(FieldElement):
                 self.value = divmod(self, self.field.q)[1].value
         else:
             self.value = [IntModP(value, self.field.p)]
-
 
     def add(self, other):
         l1 = len(self.value)
@@ -129,6 +132,21 @@ class FiniteFieldElement(FieldElement):
 
     def degree(self):
         return len(self.value) - 1
+
+    def order(self):
+        field_order = self.field.order()
+        fac = prime_factorise(field_order, counted=True)
+        powers = [range(e+1) for e in [fac[p] for p in sorted(fac.keys())]]
+        candidates = []
+        for p in product(*powers):
+            value = [f**p for f, p in zip(sorted(fac.keys()), p)]
+            out = 1
+            for v in value:
+                out *= v
+            candidates.append(out)
+        for c in sorted(candidates):
+            if self**c == 1:
+                return c
 
     def __repr__(self):
         if self.degree() == 0:

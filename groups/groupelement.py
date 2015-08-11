@@ -36,9 +36,7 @@ class GroupElement():
         if n < 0:
             return self.inverse()**-n
         elif n == 0:
-            new = deepcopy(self)
-            new.value = new.id_value
-            return new
+            return self.identity()
         elif n == 1:
             return self
         elif n % 2:

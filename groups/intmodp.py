@@ -9,7 +9,6 @@ class IntModP(FieldElement):
     def __init__(self, value, p):
         self.value = value % p
         self.p = p
-        self.order = p - 1
 
     def mult(self, other):
         if self.p != other.p:
@@ -30,6 +29,9 @@ class IntModP(FieldElement):
 
     def add_inverse(self):
         return IntModP((-self.value) % self.p, self.p)
+
+    def order(self):
+        return self.p - 1
 
     def __eq__(self, other):
         if other == 0:

@@ -26,7 +26,12 @@ class EllipticCurve():
                   ', this field has ' + self.reduction_type())
 
     def point(self, x, y):
-        return ECPoint((self.field.elt(x), self.field.elt(y)), self.curve, self.field)
+        try:
+            return ECPoint((self.field.elt(x), self.field.elt(y)), self)
+        except:
+            x = x.value
+            y = y.value
+            return ECPoint((self.field.elt(x), self.field.elt(y)), self)
 
     def order(self, base_field=False):
         a, b = self.curve[0].value[0].value, self.curve[1].value[0].value
@@ -122,7 +127,7 @@ class EllipticCurve():
             f_x = self.field.elt(x)
             if f_x == P.value[0] or f_x == -Q.value[0]:
                 continue
-            elif f_x == (P-Q).value[0]:
+            elif P-Q != 0 and f_x == (P-Q).value[0]:
                 continue
             elif nt.legendre_symbol(x**3+a*x+b, self.field.p) != 1:
                 continue

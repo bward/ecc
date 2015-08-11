@@ -1,45 +1,44 @@
 from math import floor, ceil, sqrt, exp, log
 from random import randint
-import groups
 import number_theory as nt
+from groups.ellipticcurve import EllipticCurve
 
 
 def babystep_giantstep(g, h, order=0):  # discrete log problem g^x = h (p)
     if order == 0:
-        order = g.p
+        order = g.order()
     n = floor(sqrt(order)) + 1
     powers = [1]
-
     for i in range(n-1):
         powers.append(g * powers[i])
-
     y = h
     inv = g**-n
-
     for j in range(n):
         if y in powers:
             return j*n+powers.index(y)
         y = y * inv
 
 
-def discrete_log_pp(g, h, q, e):  # solves discrete logs for pp order elts
+def discrete_log_pp(g, h, q, e, mov_point=False):  # solves discrete logs for pp order elts
     coefficients = []
 
-    for i in range(1, e):
-        if pow(g, q**i) == 1:
-            e = i
-            break
+    # for i in range(1, e):
+    #     if pow(g, q**i) == 1:
+    #         e = i
+    #         break
 
     for i in range(e):
         exp = 0
 
         for j in range(i):
             exp += coefficients[j]*q**j
-
         g_i = pow(g, q**(e-1))
         h_i = pow(h*pow(g, exp).inverse(), q**(e-i-1))
+        # if mov_point:
+        #     coefficients.append(mov(g_i, h_i, mov_point, q))
+        # else:
+        #     coefficients.append(babystep_giantstep(g_i, h_i, order=q))
         coefficients.append(babystep_giantstep(g_i, h_i, order=q))
-
     x = 0
 
     for i in range(e):
@@ -48,17 +47,17 @@ def discrete_log_pp(g, h, q, e):  # solves discrete logs for pp order elts
     return x
 
 
-def pohlig_hellman(g, h):
-    factorisation = nt.prime_factorise(g.order, counted=True)
+def pohlig_hellman(g, h, mov_point=False):
+    factorisation = nt.prime_factorise(g.order(), counted=True)
     ys = []
 
     for q in factorisation.keys():
 
         order = q**factorisation[q]
-        g_i = pow(g, g.order//order)
-        h_i = pow(h, g.order//order)
+        g_i = pow(g, g.order()//order)
+        h_i = pow(h, g.order()//order)
 
-        ys.append((discrete_log_pp(g_i, h_i, q, factorisation[q]), order))
+        ys.append((discrete_log_pp(g_i, h_i, q, factorisation[q], mov_point), order))
 
     return nt.chinese_remainder_theorem(ys)[0]
 
@@ -130,27 +129,51 @@ def _ints_mod_p_shuffle(x, a, b, g, h):
 def pollard_rho(g, h, f):
     x, y = g.identity(), h.identity()
     a, b, c, d = 0, 0, 0, 0
-    for i in range(g.order):
+    for i in range(g.order()):
         x, a, b = f(x, a, b, g, h)
         y, c, d = f(y, c, d, g, h)
         y, c, d = f(y, c, d, g, h)
 
         if x == y:
             # found a collision
-            u = (a-c) % g.order
-            v = (d-b) % g.order
+            u = (a-c) % g.order()
+            v = (d-b) % g.order()
             # know that g^u=h^v
-            inv, gcd = nt.extended_euclid(v, g.order)[::2]
+            inv, gcd = nt.extended_euclid(v, g.order())[::2]
 
-            log_mod_gcd = ((u*inv) % g.order)//gcd
+            log_mod_gcd = ((u*inv) % g.order())//gcd
             reduced = g.p//gcd
 
             for j in range(gcd):
                 if pow(g, log_mod_gcd+j*reduced) == h:
                     return log_mod_gcd+j*reduced
 
+
+def mov(P, Q, T, l=False):
+    curve = P.curve
+    N = curve.order()
+    if not l:
+        l = P.order()
+    T = (N//l) * T
+    if T == 0:
+        raise AttributeError('T of bad order')
+    a = curve.weil_pairing(P, T, l)
+    b = curve.weil_pairing(Q, T, l)
+    return babystep_giantstep(a, b, N)
+
+
+def supersingular(P, Q, d):
+    c = P.curve
+    e_1 = c.weil_pairing(P, d(P), P.order())
+    e_2 = c.weil_pairing(P, d(Q), P.order())
+    return babystep_giantstep(e_1, e_2)
+
+
 if __name__ == '__main__':
-    g = groups.IntModP(13, 11251)
-    h = groups.IntModP(6909, 11251)
-    print(pollard_rho(g, h, lambda x, a, b, q, h: _ints_mod_p_shuffle(x, a, b, q, h)))
-    print(pohlig_hellman(g, h))
+    from groups.finitefield import FiniteField
+    f = FiniteField(547, 2, [1, 0, 1])
+    c = EllipticCurve((1, 0), f)
+    x = c.point(67, 481)
+    y = c.point(167, 405)
+    t = c.point([256, 110], [441, 15])
+    print(pohlig_hellman(x, y, t))
