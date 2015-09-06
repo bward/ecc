@@ -19,6 +19,7 @@ class EllipticCurve():
         self.field = field
         if len(curve) > 2:
             self.curve = weierstrass(curve)
+            self.curve = list(field.elt([i]) for i in curve)
         else:
             self.curve = list(field.elt([i]) for i in curve)
         if self.field.p in self.bad_reduction_primes():
@@ -56,6 +57,8 @@ class EllipticCurve():
     def bad_reduction_primes(self):
         a, b = self.curve[0].value[0].value, self.curve[1].value[0].value
         d = 4*a**3+27*b**2
+        if d == 0:
+            return [self.field.p]
         return set(nt.prime_factorise(abs(d)))
 
     def reduction_type(self):
@@ -67,7 +70,10 @@ class EllipticCurve():
         else:
             return 'good reduction'
 
-    def weil_pairing(self, P, Q, m):
+    def weil_pairing(self, P, Q):
+        m = P.order()
+        assert(m == Q.order())
+
         def g(R, S):
             x_1, y_1 = R.value
             x_2, y_2 = S.value

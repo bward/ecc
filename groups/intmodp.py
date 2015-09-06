@@ -4,6 +4,7 @@ import number_theory as nt
 
 class IntModP(FieldElement):
     id_value = 1
+    mult_id_value = 1
     add_id_value = 0
 
     def __init__(self, value, p):
